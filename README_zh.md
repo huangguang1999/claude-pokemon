@@ -2,6 +2,10 @@
 
 一个 macOS 灵动岛（刘海）应用，在 Claude Code 工作时显示一只宝可梦伙伴。纯 SwiftUI + AppKit 构建，零依赖。
 
+## 演示
+
+https://github.com/huangguang1999/claude-pokemon/raw/main/screenshots/demo.mov
+
 ## 截图
 
 | 收起状态（活跃中） | 展开状态（权限请求） |

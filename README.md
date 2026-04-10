@@ -4,6 +4,10 @@
 
 A macOS Dynamic Island (notch) app that shows a Pokemon buddy when Claude Code is working. Built with pure SwiftUI + AppKit, zero dependencies.
 
+## Demo
+
+https://github.com/huangguang1999/claude-pokemon/raw/main/screenshots/demo.mov
+
 ## Screenshots
 
 | Collapsed (Active) | Expanded (Permission Request) |
