@@ -7,6 +7,7 @@ SRC_DIR = claude-pokemon
 SWIFT_FILES = \
 	$(SRC_DIR)/App/ClaudePokemonApp.swift \
 	$(SRC_DIR)/App/AppDelegate.swift \
+	$(SRC_DIR)/App/AppLanguage.swift \
 	$(SRC_DIR)/Window/ScreenGeometry.swift \
 	$(SRC_DIR)/Window/NotchWindow.swift \
 	$(SRC_DIR)/Window/NotchContentView.swift \
@@ -14,7 +15,6 @@ SWIFT_FILES = \
 	$(SRC_DIR)/Views/CollapsedNotchView.swift \
 	$(SRC_DIR)/Views/ExpandedNotchView.swift \
 	$(SRC_DIR)/Pokemon/PokemonCharacter.swift \
-	$(SRC_DIR)/Pokemon/SpriteAnimator.swift \
 	$(SRC_DIR)/IPC/SessionState.swift \
 	$(SRC_DIR)/IPC/SessionManager.swift \
 	$(SRC_DIR)/IPC/SocketServer.swift

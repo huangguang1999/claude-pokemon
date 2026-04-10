@@ -3,9 +3,12 @@ import SwiftUI
 /// Expanded notch view showing permission request with Allow/Deny buttons
 struct ExpandedNotchView: View {
     @ObservedObject var sessionManager: SessionManager
+    let language: AppLanguage
 
     var body: some View {
         if let request = sessionManager.activePermissionRequest {
+            let strings = AppStrings(language: language)
+
             VStack(spacing: 10) {
                 // Tool info
                 HStack(spacing: 8) {
@@ -29,7 +32,7 @@ struct ExpandedNotchView: View {
                 // Action buttons — custom styles to avoid focus/hover changes
                 HStack(spacing: 12) {
                     Button(action: { sessionManager.resolvePermission(allow: false) }) {
-                        Text("Deny")
+                        Text(strings.denyTitle)
                             .font(.system(size: 12, weight: .medium))
                             .frame(maxWidth: .infinity)
                     }
@@ -39,7 +42,7 @@ struct ExpandedNotchView: View {
                     ))
 
                     Button(action: { sessionManager.resolvePermission(allow: true) }) {
-                        Text("Allow")
+                        Text(strings.allowTitle)
                             .font(.system(size: 12, weight: .medium))
                             .frame(maxWidth: .infinity)
                     }

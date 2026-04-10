@@ -47,6 +47,7 @@ struct NotchContentView: View {
     let screenWidth: CGFloat
     let windowHeight: CGFloat
     let currentPokemon: PokemonSpecies
+    let language: AppLanguage
     @State private var pokemonExcited: Bool = false
 
     private var isExpanded: Bool { sessionManager.appState == .permission || sessionManager.appState == .capture }
@@ -54,7 +55,7 @@ struct NotchContentView: View {
     private var showContent: Bool { sessionManager.appState != .idle }
 
     private var isCoding: Bool {
-        sessionManager.sessions.values.contains { $0.status == "processing" || $0.status == "running_tool" }
+        sessionManager.sessions.values.contains { $0.isActivelyCoding }
     }
 
     // Left side: wider to fit basketball + Pokemon scene
@@ -83,6 +84,7 @@ struct NotchContentView: View {
 
     private let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8)
     private let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0)
+    private var strings: AppStrings { AppStrings(language: language) }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -118,7 +120,7 @@ struct NotchContentView: View {
             if isExpanded {
                 VStack(spacing: 0) {
                     HStack(spacing: 6) {
-                        Text("Claude Pokemon")
+                        Text(strings.appTitle)
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.white.opacity(0.6))
                         Spacer()
@@ -127,11 +129,11 @@ struct NotchContentView: View {
                     .frame(height: 28)
 
                     if sessionManager.appState == .capture {
-                        CaptureResultView(sessionManager: sessionManager)
+                        CaptureResultView(sessionManager: sessionManager, language: language)
                             .padding(.horizontal, 12)
                             .padding(.bottom, 10)
                     } else {
-                        ExpandedNotchView(sessionManager: sessionManager)
+                        ExpandedNotchView(sessionManager: sessionManager, language: language)
                             .padding(.horizontal, 12)
                             .padding(.bottom, 10)
                     }
@@ -175,27 +177,30 @@ struct NotchContentView: View {
 
 struct CaptureResultView: View {
     @ObservedObject var sessionManager: SessionManager
+    let language: AppLanguage
 
     var body: some View {
         if let species = sessionManager.captureResult {
+            let strings = AppStrings(language: language)
+
             VStack(spacing: 10) {
                 HStack(spacing: 12) {
                     PokemonPixelArtView(species: species, size: 36)
 
                     VStack(alignment: .leading, spacing: 3) {
                         if sessionManager.captureIsNew {
-                            Text("捕获了新宝可梦!")
+                            Text(strings.captureNewPokemonTitle)
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(Color(red: 0.95, green: 0.75, blue: 0.25))
                         } else {
-                            Text("已拥有，积分 +20")
+                            Text(strings.duplicatePokemonTitle)
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(.white.opacity(0.7))
                         }
-                        Text("\(species.japaneseName) (\(species.displayName))")
+                        Text(species.localizedDisplayName(in: language))
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(.white)
-                        Text("#\(species.dexNumber) \(species.rarity.rawValue) \(species.rarity.stars)")
+                        Text("#\(species.dexNumber) \(strings.rarityTitle(species.rarity))")
                             .font(.system(size: 10))
                             .foregroundColor(.gray)
                     }
@@ -204,7 +209,7 @@ struct CaptureResultView: View {
                 }
 
                 Button(action: { sessionManager.dismissCapture() }) {
-                    Text("OK")
+                    Text(strings.okTitle)
                         .font(.system(size: 12, weight: .medium))
                         .frame(maxWidth: .infinity)
                 }
@@ -538,8 +543,23 @@ struct PokemonBallScene: View {
 
     private func idleTick() {
         let breath = sin(Double(frame) * 0.04)
-        pokeOffsetY = CGFloat(breath) * 1.5
-        pokeRotation = 0
+
+        // Poll-style hop every 3 seconds so the Pokemon visibly "moves" while Claude is idle.
+        // Timer ticks every 0.03s → 100 frames ≈ 3s. Hop occupies the first 20 frames of each cycle.
+        let hopCycle = frame % 100
+        let hopLift: CGFloat
+        let hopTilt: Double
+        if hopCycle < 20 {
+            let t = Double(hopCycle) / 20.0
+            hopLift = CGFloat(-sin(t * .pi) * 5.0)
+            hopTilt = sin(t * .pi * 2) * 6.0
+        } else {
+            hopLift = 0
+            hopTilt = 0
+        }
+
+        pokeOffsetY = CGFloat(breath) * 1.5 + hopLift
+        pokeRotation = hopTilt
         let restX: CGFloat = 14
         let restY: CGFloat = sceneH / 2 - ballR
         ballX += (restX - ballX) * 0.05

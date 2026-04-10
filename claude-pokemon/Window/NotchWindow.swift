@@ -17,10 +17,9 @@ final class NotchPanel: NSPanel {
         case .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp:
             if let contentView = self.contentView,
                contentView.hitTest(event.locationInWindow) == nil {
-                let screenLoc = convertPoint(toScreen: event.locationInWindow)
                 ignoresMouseEvents = true
                 DispatchQueue.main.async { [weak self] in
-                    self?.repostClick(event, at: screenLoc)
+                    self?.repostClick(event)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         self?.ignoresMouseEvents = false
                     }
@@ -33,15 +32,9 @@ final class NotchPanel: NSPanel {
         super.sendEvent(event)
     }
 
-    private func repostClick(_ event: NSEvent, at screenLoc: NSPoint) {
-        guard let screen = NSScreen.main else { return }
-        let cgPoint = CGPoint(x: screenLoc.x, y: screen.frame.height - screenLoc.y)
-        let cgType: CGEventType = (event.type == .leftMouseDown) ? .leftMouseDown
-            : (event.type == .leftMouseUp) ? .leftMouseUp
-            : (event.type == .rightMouseDown) ? .rightMouseDown : .rightMouseUp
-        let button: CGMouseButton = (event.type == .rightMouseDown || event.type == .rightMouseUp) ? .right : .left
-        if let cg = CGEvent(mouseEventSource: nil, mouseType: cgType, mouseCursorPosition: cgPoint, mouseButton: button) {
-            cg.post(tap: .cghidEventTap)
+    private func repostClick(_ event: NSEvent) {
+        if let cgEvent = event.cgEvent {
+            cgEvent.post(tap: .cghidEventTap)
         }
     }
 }
@@ -55,7 +48,13 @@ final class NotchWindow {
     private var cancellables = Set<AnyCancellable>()
     private var clickMonitor: Any?
 
-    init(notchBounds: ScreenGeometry.NotchBounds, sessionManager: SessionManager, screen: NSScreen, pokemon: PokemonSpecies) {
+    init(
+        notchBounds: ScreenGeometry.NotchBounds,
+        sessionManager: SessionManager,
+        screen: NSScreen,
+        pokemon: PokemonSpecies,
+        language: AppLanguage
+    ) {
         // Window only covers the notch area + expansion, not full screen width.
         // This prevents overlapping with right-side menu bar items.
         let windowHeight: CGFloat = 350
@@ -67,7 +66,6 @@ final class NotchWindow {
             width: windowWidth,
             height: windowHeight
         )
-        logDebug("Requested window frame: \(windowFrame)")
 
         panel = NotchPanel(
             contentRect: windowFrame,
@@ -92,7 +90,8 @@ final class NotchWindow {
             notchSize: CGSize(width: notchBounds.width, height: notchBounds.height),
             screenWidth: windowWidth,
             windowHeight: windowHeight,
-            currentPokemon: pokemon
+            currentPokemon: pokemon,
+            language: language
         )
 
         let hostingView = PassThroughHostingView(rootView: contentView)
@@ -138,6 +137,22 @@ final class NotchWindow {
 
     func orderFrontRegardless() { panel.orderFrontRegardless() }
     var frame: NSRect { panel.frame }
+
+    func close() {
+        if let clickMonitor {
+            NSEvent.removeMonitor(clickMonitor)
+            self.clickMonitor = nil
+        }
+        cancellables.removeAll()
+        panel.orderOut(nil)
+        panel.close()
+    }
+
+    deinit {
+        if let clickMonitor {
+            NSEvent.removeMonitor(clickMonitor)
+        }
+    }
 }
 
 /// Pass-through hosting view: only accepts hits inside the active content rect.

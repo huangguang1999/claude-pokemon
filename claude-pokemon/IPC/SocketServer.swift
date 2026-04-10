@@ -9,13 +9,17 @@ final class SocketServer: Sendable {
         self.sessionManager = sessionManager
     }
 
+    private func reportError(_ message: String) {
+        fputs("[SocketServer] \(message)\n", stderr)
+    }
+
     func start() async {
         // Clean up stale socket
         unlink(socketPath)
 
         let serverFd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard serverFd >= 0 else {
-            print("[SocketServer] Failed to create socket: \(errno)")
+            reportError("Failed to create socket: \(errno)")
             return
         }
 
@@ -34,7 +38,7 @@ final class SocketServer: Sendable {
         }
 
         guard bindResult == 0 else {
-            print("[SocketServer] Failed to bind: \(errno)")
+            reportError("Failed to bind: \(errno)")
             Darwin.close(serverFd)
             return
         }
@@ -43,12 +47,10 @@ final class SocketServer: Sendable {
         chmod(socketPath, 0o700)
 
         guard listen(serverFd, 5) == 0 else {
-            print("[SocketServer] Failed to listen: \(errno)")
+            reportError("Failed to listen: \(errno)")
             Darwin.close(serverFd)
             return
         }
-
-        print("[SocketServer] Listening on \(socketPath)")
 
         // Accept connections in a loop
         while !Task.isCancelled {
@@ -63,7 +65,7 @@ final class SocketServer: Sendable {
 
             guard clientFd >= 0 else {
                 if errno == EINTR { continue }
-                print("[SocketServer] Accept error: \(errno)")
+                reportError("Accept error: \(errno)")
                 break
             }
 
@@ -100,14 +102,12 @@ final class SocketServer: Sendable {
         // Decode session state
         let decoder = JSONDecoder()
         guard let state = try? decoder.decode(SessionState.self, from: totalData) else {
-            print("[SocketServer] Failed to decode JSON: \(String(data: totalData, encoding: .utf8) ?? "nil")")
+            reportError("Failed to decode JSON: \(String(data: totalData, encoding: .utf8) ?? "nil")")
             Darwin.close(fd)
             return
         }
 
-        print("[SocketServer] Event: \(state.event), status: \(state.status), session: \(state.sessionId)")
-
-        if state.status == "waiting_for_approval" {
+        if state.isWaitingForApproval {
             // For permission requests, pass the fd to SessionManager
             // The fd will be kept open until the user responds
             await MainActor.run {

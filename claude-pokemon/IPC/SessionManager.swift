@@ -15,9 +15,17 @@ final class SessionManager: ObservableObject {
     @Published var sessions: [String: SessionState] = [:]
     @Published var activePermissionRequest: PermissionRequest?
     @Published var appState: AppState = .idle
+    @Published private(set) var capturePoints: Int {
+        didSet { UserDefaults.standard.set(capturePoints, forKey: Self.capturePointsKey) }
+    }
+    @Published private(set) var pendingCaptures: Int {
+        didSet { UserDefaults.standard.set(pendingCaptures, forKey: Self.pendingCapturesKey) }
+    }
 
     private let expandAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8)
     private let collapseAnimation = Animation.spring(response: 0.35, dampingFraction: 1.0)
+    private static let capturePointsKey = "capturePoints"
+    private static let pendingCapturesKey = "pendingCaptures"
 
     /// Animate appState transitions
     private func setAppState(_ newState: AppState) {
@@ -31,14 +39,6 @@ final class SessionManager: ObservableObject {
     // Capture system
     @Published var captureResult: PokemonSpecies?
     @Published var captureIsNew: Bool = false
-    var capturePoints: Int {
-        get { UserDefaults.standard.integer(forKey: "capturePoints") }
-        set { UserDefaults.standard.set(newValue, forKey: "capturePoints") }
-    }
-    var pendingCaptures: Int {
-        get { UserDefaults.standard.integer(forKey: "pendingCaptures") }
-        set { UserDefaults.standard.set(newValue, forKey: "pendingCaptures") }
-    }
 
     /// Queue of pending permission requests (if multiple arrive)
     private var permissionQueue: [PermissionRequest] = []
@@ -62,12 +62,21 @@ final class SessionManager: ObservableObject {
     ]
 
     init() {
+        capturePoints = UserDefaults.standard.integer(forKey: Self.capturePointsKey)
+        pendingCaptures = UserDefaults.standard.integer(forKey: Self.pendingCapturesKey)
+
         // Give 10 capture chances on first launch
         if !UserDefaults.standard.bool(forKey: "initialCapturesGranted") {
             pendingCaptures += 10
             UserDefaults.standard.set(true, forKey: "initialCapturesGranted")
         }
         setupFrontmostAppMonitor()
+    }
+
+    deinit {
+        if let workspaceObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(workspaceObserver)
+        }
     }
 
     // MARK: - Frontmost App Monitoring
@@ -103,7 +112,6 @@ final class SessionManager: ObservableObject {
 
         // If switched TO terminal while permission popup is showing, auto-collapse
         if !wasTerminal && isTerminalActive && activePermissionRequest != nil {
-            logDebug("[SessionManager] Terminal became active, dismissing permission popup → ask")
             dismissPermissionAsAsk()
         }
     }
@@ -111,31 +119,26 @@ final class SessionManager: ObservableObject {
     // MARK: - Session Events
 
     func handleSessionEvent(_ state: SessionState, fileDescriptor: Int32? = nil) {
-        logDebug("[SessionManager] event=\(state.event) status=\(state.status) session=\(state.sessionId) hasPermission=\(activePermissionRequest != nil) terminalActive=\(isTerminalActive)")
-
         // If we have a pending permission, don't let other events override the state
-        if activePermissionRequest != nil && state.status != "waiting_for_approval" && state.status != "ended" {
+        if activePermissionRequest != nil && !state.isWaitingForApproval && !state.isEnded {
             sessions[state.sessionId] = state
-            logDebug("[SessionManager] Ignoring state update, permission pending")
             return
         }
 
         // Accumulate capture points on tool usage
         if state.event == "PostToolUse" {
             addCapturePoints(for: state.tool)
-            logDebug("[Capture] points=\(capturePoints) pending=\(pendingCaptures) tool=\(state.tool ?? "?")")
         }
 
         switch state.status {
-        case "ended":
+        case _ where state.isEnded:
             sessions.removeValue(forKey: state.sessionId)
 
-        case "waiting_for_approval":
+        case _ where state.isWaitingForApproval:
             sessions[state.sessionId] = state
             if let fd = fileDescriptor {
                 // If terminal is active, don't intercept — let CLI handle it
                 if isTerminalActive {
-                    logDebug("[SessionManager] Terminal is active, passing permission to CLI")
                     sendAskDecision(fd: fd)
                     return
                 }
@@ -222,12 +225,14 @@ final class SessionManager: ObservableObject {
         if capturePoints >= 100 {
             capturePoints -= 100
             pendingCaptures += 1
-            logDebug("[Capture] Earned capture chance! pending=\(pendingCaptures)")
         }
     }
 
     /// Trigger a capture (roll a Pokemon)
     func triggerCapture() {
+        guard pendingCaptures > 0 else { return }
+
+        pendingCaptures -= 1
         let rolled = PokemonGacha.roll()
         let caught = PokemonStorage.caughtList()
         captureIsNew = !caught.contains(rolled.rawValue)
@@ -239,13 +244,8 @@ final class SessionManager: ObservableObject {
             capturePoints += 20
         }
 
-        if pendingCaptures > 0 {
-            pendingCaptures -= 1
-        }
-
         captureResult = rolled
         setAppState(.capture)
-        logDebug("[Capture] Rolled: \(rolled.displayName) isNew=\(captureIsNew)")
     }
 
     /// Dismiss capture result
@@ -264,9 +264,7 @@ final class SessionManager: ObservableObject {
             return
         }
 
-        let hasActiveCoding = sessions.values.contains { state in
-            state.status == "processing" || state.status == "running_tool"
-        }
+        let hasActiveCoding = sessions.values.contains { $0.isActivelyCoding }
 
         let newState: AppState
         if hasActiveCoding {
@@ -276,7 +274,6 @@ final class SessionManager: ObservableObject {
         } else {
             newState = .idle
         }
-        logDebug("[SessionManager] appState: \(appState) -> \(newState), sessions: \(sessions.count)")
         setAppState(newState)
     }
 }

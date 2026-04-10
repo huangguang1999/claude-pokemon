@@ -1,6 +1,6 @@
 import Foundation
 
-/// Matches the JSON sent by claude-island-state.py
+/// Matches the session JSON sent to the local Unix socket by Claude Code hooks/client.
 struct SessionState: Codable, Identifiable {
     let sessionId: String
     let cwd: String
@@ -29,6 +29,10 @@ struct SessionState: Codable, Identifiable {
         case notificationType = "notification_type"
         case message
     }
+
+    var isWaitingForApproval: Bool { status == "waiting_for_approval" }
+    var isEnded: Bool { status == "ended" }
+    var isActivelyCoding: Bool { status == "processing" || status == "running_tool" }
 }
 
 /// Flexible JSON value type for tool_input fields

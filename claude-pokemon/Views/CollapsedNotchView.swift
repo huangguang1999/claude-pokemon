@@ -12,7 +12,7 @@ struct CollapsedNotchView: View {
     private let timer = Timer.publish(every: 1.0 / 10.0, on: .main, in: .common).autoconnect()
 
     private var isCoding: Bool {
-        sessionManager.sessions.values.contains { $0.status == "processing" || $0.status == "running_tool" }
+        sessionManager.sessions.values.contains { $0.isActivelyCoding }
     }
 
     var body: some View {
