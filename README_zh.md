@@ -4,7 +4,7 @@
 
 ## 演示
 
-https://github.com/huangguang1999/claude-pokemon/raw/main/screenshots/demo.mov
+![demo](screenshots/demo.gif)
 
 ## 截图
 

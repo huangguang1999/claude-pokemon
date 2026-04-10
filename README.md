@@ -6,7 +6,7 @@ A macOS Dynamic Island (notch) app that shows a Pokemon buddy when Claude Code i
 
 ## Demo
 
-https://github.com/huangguang1999/claude-pokemon/raw/main/screenshots/demo.mov
+![demo](screenshots/demo.gif)
 
 ## Screenshots
 
