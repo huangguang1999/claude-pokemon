@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.1.1)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Build + sign + package
+        run: make package
+
+      - name: Verify signature
+        run: codesign -dv build/ClaudePokemon.app
+
+      - name: Compute checksum
+        id: checksum
+        run: |
+          cd build
+          SHA=$(shasum -a 256 ClaudePokemon.app.zip | awk '{print $1}')
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "$SHA  ClaudePokemon.app.zip" > ClaudePokemon.app.zip.sha256
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            build/ClaudePokemon.app.zip
+            build/ClaudePokemon.app.zip.sha256
+          body: |
+            ## Install
+
+            One-liner:
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/huangguang1999/claude-pokemon/main/scripts/install.sh | bash
+            ```
+
+            Or download `ClaudePokemon.app.zip` below, unzip, drag to `/Applications`, then:
+
+            ```bash
+            xattr -dr com.apple.quarantine /Applications/ClaudePokemon.app
+            ```
+
+            ### Checksum
+
+            ```
+            ${{ steps.checksum.outputs.sha256 }}  ClaudePokemon.app.zip
+            ```
+
+            ### Requirements
+
+            - macOS 14+
+            - MacBook with a notch
+            - Apple Silicon (arm64)
