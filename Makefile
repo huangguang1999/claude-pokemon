@@ -24,7 +24,7 @@ SWIFT_FLAGS = -O -parse-as-library \
 	-framework SwiftUI \
 	-framework Combine
 
-.PHONY: all clean install run
+.PHONY: all clean install run sign package
 
 all: $(BUILD_DIR)/$(BUNDLE_NAME)
 
@@ -49,6 +49,17 @@ install: $(BUILD_DIR)/$(BUNDLE_NAME)
 run: $(BUILD_DIR)/$(BUNDLE_NAME)
 	@echo "Launching $(APP_NAME)..."
 	open $(BUILD_DIR)/$(BUNDLE_NAME)
+
+sign: $(BUILD_DIR)/$(BUNDLE_NAME)
+	@echo "Ad-hoc signing $(BUNDLE_NAME)..."
+	codesign --force --deep --sign - $(BUILD_DIR)/$(BUNDLE_NAME)
+	@echo "Signed"
+
+package: sign
+	@echo "Packaging $(BUNDLE_NAME).zip..."
+	@rm -f $(BUILD_DIR)/$(BUNDLE_NAME).zip
+	cd $(BUILD_DIR) && ditto -c -k --sequesterRsrc --keepParent $(BUNDLE_NAME) $(BUNDLE_NAME).zip
+	@echo "Packaged: $(BUILD_DIR)/$(BUNDLE_NAME).zip"
 
 uninstall:
 	@echo "Removing from /Applications..."

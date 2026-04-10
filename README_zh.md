@@ -40,17 +40,41 @@
 - 首次启动赠送 10 次捕捉机会
 - 抽到重复宝可梦额外返还 20 分
 
-## 编译与安装
+## 安装
+
+### 方式一 — 一键安装（推荐）
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/huangguang1999/claude-pokemon/main/scripts/install.sh | bash
+```
+
+脚本会从 GitHub Releases 下载预编译好的 `.app`、去除 quarantine 属性、安装到 `/Applications` 并自动启动。
+
+### 方式二 — 从 Releases 下载
+
+到 [最新 Release](https://github.com/huangguang1999/claude-pokemon/releases/latest) 下载 `ClaudePokemon.app.zip`，解压后把 `ClaudePokemon.app` 拖到 `/Applications`。
+
+如果 macOS 提示"无法打开，因为 Apple 无法检查其是否包含恶意软件"，执行一次：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/ClaudePokemon.app
+```
+
+### 方式三 — 源码编译
 
 ```bash
 make          # 编译
+make sign     # Ad-hoc 签名
+make package  # 编译 + 签名 + 打包 zip
 make install  # 安装到 /Applications
 make run      # 编译并启动
 make clean    # 清理构建产物
 make uninstall # 从 /Applications 卸载
 ```
 
-需要 macOS 14+ 且配备刘海屏的 MacBook（MacBook Pro 14"/16"、MacBook Air M2+）。
+### 系统要求
+
+macOS 14+ 且配备刘海屏的 MacBook（MacBook Pro 14"/16"、MacBook Air M2+）。
 
 ## 架构
 

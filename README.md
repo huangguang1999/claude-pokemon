@@ -42,17 +42,41 @@ A macOS Dynamic Island (notch) app that shows a Pokemon buddy when Claude Code i
 - 10 free captures on first launch
 - Duplicates give +20 bonus points
 
-## Build & Install
+## Install
+
+### Option 1 — One-line install (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/huangguang1999/claude-pokemon/main/scripts/install.sh | bash
+```
+
+Downloads the latest pre-built `.app` from GitHub Releases, strips the quarantine attribute, installs to `/Applications`, and launches.
+
+### Option 2 — Download from Releases
+
+Grab `ClaudePokemon.app.zip` from the [latest release](https://github.com/huangguang1999/claude-pokemon/releases/latest), unzip it, and drag `ClaudePokemon.app` into `/Applications`.
+
+If macOS blocks the app ("can't be opened because Apple cannot check it for malicious software"), run once:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/ClaudePokemon.app
+```
+
+### Option 3 — Build from source
 
 ```bash
 make          # Build
+make sign     # Ad-hoc sign
+make package  # Build + sign + zip
 make install  # Install to /Applications
 make run      # Build and launch
 make clean    # Clean build artifacts
 make uninstall # Remove from /Applications
 ```
 
-Requires macOS 14+ with a notch display (MacBook Pro 14"/16", MacBook Air M2+).
+### Requirements
+
+macOS 14+ with a notch display (MacBook Pro 14"/16", MacBook Air M2+).
 
 ## Architecture
 
